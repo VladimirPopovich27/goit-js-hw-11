@@ -1,122 +1,190 @@
+const axios = require('axios').default;
 import SimpleLightbox from 'simplelightbox';
+// Додатковий імпорт стилів
 import 'simplelightbox/dist/simple-lightbox.min.css';
+const myKey = '34154795-6fcd5a0715506f88bd4f4189d';
+import Notiflix from 'notiflix';
 
-import { FetcherOfImages } from './js/fetchImages';
+const rfs = {
+  cardSet: document.querySelector('.gallery'),
+  btnMore: document.querySelector('.load-more'),
+  inputEl: document.querySelector('.search-form')[0],
+  btnFind: document.querySelector('.search-form')[1],
+};
 
-import { Notify } from 'notiflix/build/notiflix-notify-aio';
-import 'notiflix/dist/notiflix-notify-aio-3.2.6.min.js';
+rfs.btnMore.addEventListener('click', btnMoreClickHandler);
+rfs.inputEl.addEventListener('input', onInputElHandler);
+rfs.btnFind.addEventListener('click', btnFindClickHandler);
 
-const searchFormRef = document.querySelector('.search-form');
-const galleryRef = document.querySelector('.gallery');
+const optionsLightbox = {
+  closeText: '×',
+  nav: true,
+  navText: ['←', '→'],
+};
+const lightbox = new SimpleLightbox('.gallery a', optionsLightbox);
+lightbox.on('show.simplelightbox');
 
-const loadMoreBtn = document.querySelector('.load-more');
-const observer = new IntersectionObserver(intersectingHandler);
-observer.observe(loadMoreBtn);
+let page = 1;
+let per_page = 40;
+let inputValue = '';
+let url = 'https://pixabay.com/api/';
+let allPages = 0;
 
-searchFormRef.addEventListener('submit', onSubmitForm);
+function onInputElHandler() {
+  inputValue = rfs.inputEl.value;
+}
 
-const fetcherOfImages = new FetcherOfImages();
-const simpleLightbox = initializeSimpleLightbox();
-
-function onSubmitForm(e) {
+async function btnFindClickHandler(e) {
   e.preventDefault();
+  page = 1;
+  // inputValue = 'cat yellow eye';
+  // inputValue = 'cfrtyhbnj';
 
-  fetchImages();
+  await clearCardset();
+  await getData();
 }
 
-async function fetchImages() {
-  const query = searchFormRef.elements.searchQuery.value.trim();
-  if (query === '') {
-    return;
-  }
-  await fetcherOfImages
-    .getImages(query)
-    .then(({ data }) => {
-      if (data.hits.length === 0) {
-        galleryRef.innerHTML = '';
-        return Notify.failure(
-          'Sorry, there are no images matching your search query. Please try again.'
-        );
-      }
-      if (fetcherOfImages.page === 1) {
-        galleryRef.innerHTML = renderGallery(data.hits);
-        Notify.success(`Hooray! We found ${data.totalHits} images.`);
-      } else {
-        galleryRef.insertAdjacentHTML('beforeend', renderGallery(data.hits));
-        setScrollbehavior();
-      }
-    })
-    .catch(error => {
-      if (error.response.status === 400) {
-        Notify.info(
-          "We're sorry, but you've reached the end of search results."
-        );
-      } else {
-        Notify.failure('Something went wrong. Try again!');
-      }
+function btnMoreClickHandler() {
+  page++;
+  getData();
+}
+
+function createCardHTML(item) {
+  const {
+    webformatURL,
+    largeImageURL,
+    tags,
+    likes,
+    views,
+    comments,
+    downloads,
+  } = item;
+  const markup = `<div data-id="${page}" class="photo-card">
+  <a href="${largeImageURL}">
+  <img src="${webformatURL}" alt="${(largeImageURL, tags)}" loading="lazy" />
+
+<div class="info">
+  <p class="info-item" style="text-decoration:none;">
+    <b>Likes </b>${likes}
+  </p>
+  <p class="info-item">
+    <b>Views </b>${views}
+  </p>
+  <p class="info-item">
+    <b>Comments </b>${comments}
+  </p>
+  <p class="info-item">
+    <b>Downloads </b>${downloads}
+  </p>
+</div>
+</a>
+</div>
+`;
+  return markup;
+}
+
+function galleryInnerHTML(array) {
+  array.length !== 0 &&
+    rfs.cardSet.insertAdjacentHTML(
+      'beforeend',
+      array.map(createCardHTML).join('')
+    );
+}
+
+function clearCardset() {
+  rfs.cardSet.innerHTML = '';
+}
+
+async function getData() {
+  hideBtn();
+
+  try {
+    const response = await axios.get(url, {
+      params: {
+        key: myKey,
+        q: inputValue,
+        image_type: 'photo',
+        per_page: per_page,
+        page: page,
+        safesearch: true,
+        orientation: 'horizontal',
+      },
     });
-  simpleLightbox.refresh();
+    await renderPage(response.data);
+    await setTimeout(autoScreen, 1800);
+    await lightbox.refresh();
+  } catch (error) {
+    console.log(error.message);
+  }
+
+  // promise variant
+  // await axios
+  //   .get(url, {
+  //     params: {
+  //       key: myKey,
+  //       q: inputValue,
+  //       image_type: 'photo',
+  //       per_page: per_page,
+  //       page: page,
+  //       safesearch: true,
+  //       orientation: 'horizontal',
+  //     },
+  //   })
+  //   .then(res => res.data)
+  //   .then(({ hits, total }) => {
+  //     if (total) {
+  //       galleryInnerHTML(hits);
+  //       updatePageStatus(total);
+  //       setTimeout(comparePageNumber, 1500);
+  //       page === 1 &&
+  //         Notiflix.Notify.success(`Hooray! We found ${total} images.`);
+  //     } else {
+  //       Notiflix.Notify.warning(
+  //         'Sorry, there are no images matching your search query. Please try again.'
+  //       );
+  //     }
+  //   })
+  //   .then(setTimeout(autoScreen, 1800))
+  //   .catch(er => console.log(er.message));
+  // await lightbox.refresh();
 }
 
-function initializeSimpleLightbox() {
-  return new SimpleLightbox('.gallery a');
+function updatePageStatus(total) {
+  allPages = Math.floor(total / per_page) + 1;
+}
+function comparePageNumber() {
+  if (page === allPages) {
+    Notiflix.Notify.info(
+      "We're sorry, but you've reached the end of search results."
+    );
+    // hideBtn();
+  } else showBtn();
+}
+function hideBtn() {
+  rfs.btnMore.style.display = 'none';
+  console.log('hidden');
+}
+function showBtn() {
+  rfs.btnMore.style.display = 'block';
+  console.log('showing');
+}
+function autoScreen() {
+  document
+    .querySelector(`[data-id="${page}"]`)
+    .scrollIntoView({ block: 'start', behavior: 'smooth' });
 }
 
-function renderGallery(images) {
-  return images
-    .map(
-      ({
-        webformatURL: preview,
-        largeImageURL: original,
-        tags: description,
-        likes,
-        views,
-        comments,
-        downloads,
-      }) => {
-        return `<div class="photo-card">
-                    <a class="gallery__link" href="${original}">
-                        <img src="${preview}" alt="${description}" loading="lazy" />
-                        <div class="info">
-                            <p class="info-item">
-                            <b>Likes</b>
-                            ${likes}
-                            </p>
-                            <p class="info-item">
-                            <b>Views</b>
-                            ${views}
-                            </p>
-                            <p class="info-item">
-                            <b>Comments</b>
-                            ${comments}
-                            </p>
-                            <p class="info-item">
-                            <b>Downloads</b>
-                            ${downloads}
-                            </p>
-                        </div>
-                    </a>
-                 </div>`;
-      }
-    )
-    .join('');
+function renderPage({ hits, total }) {
+  if (total) {
+    galleryInnerHTML(hits);
+    updatePageStatus(total);
+    setTimeout(comparePageNumber, 1500);
+    page === 1 && Notiflix.Notify.success(`Hooray! We found ${total} images.`);
+  } else {
+    Notiflix.Notify.failure(
+      'Sorry, there are no images matching your search query. Please try again.'
+    );
+  }
 }
 
-function setScrollbehavior() {
-  const { height: cardHeight } = document
-    .querySelector('.gallery')
-    .firstElementChild.getBoundingClientRect();
-
-  window.scrollBy({
-    top: cardHeight * 2,
-    behavior: 'smooth',
-  });
-}
-
-function intersectingHandler(entries) {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      fetchImages();
-    }
-  });
-}
+hideBtn();
