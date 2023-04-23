@@ -79,6 +79,7 @@ div.info {
 .load-more {
   display: block;
   margin: 20 auto;
+  background-color: #ff6b0a;
 }
 
 .hideEl {

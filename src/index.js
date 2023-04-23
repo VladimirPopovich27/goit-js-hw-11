@@ -117,36 +117,6 @@ async function getData() {
     console.log(error.message);
   }
 
-  // promise variant
-  // await axios
-  //   .get(url, {
-  //     params: {
-  //       key: myKey,
-  //       q: inputValue,
-  //       image_type: 'photo',
-  //       per_page: per_page,
-  //       page: page,
-  //       safesearch: true,
-  //       orientation: 'horizontal',
-  //     },
-  //   })
-  //   .then(res => res.data)
-  //   .then(({ hits, total }) => {
-  //     if (total) {
-  //       galleryInnerHTML(hits);
-  //       updatePageStatus(total);
-  //       setTimeout(comparePageNumber, 1500);
-  //       page === 1 &&
-  //         Notiflix.Notify.success(`Hooray! We found ${total} images.`);
-  //     } else {
-  //       Notiflix.Notify.warning(
-  //         'Sorry, there are no images matching your search query. Please try again.'
-  //       );
-  //     }
-  //   })
-  //   .then(setTimeout(autoScreen, 1800))
-  //   .catch(er => console.log(er.message));
-  // await lightbox.refresh();
 }
 
 function updatePageStatus(total) {
